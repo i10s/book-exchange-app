@@ -2,7 +2,7 @@
 name = "book-exchange-app"
 version = "0.1.0"
 description = "An open-source FastAPI application for school families to exchange textbooks and reading books."
-authors = ["Your Name <you@example.com>"]
+authors = ["Your Name <inaki@ifuentes.net>"]
 license = "MIT"
 readme = "README.md"
 packages = [{ include = "book_exchange_app", from = "." }]
@@ -16,8 +16,12 @@ passlib = "^1.7.4"
 python-jose = "^3.3.0"
 jinja2 = "^3.1.2"
 python-dotenv = "^1.0.0"
+
+# Email validation for Pydantic
 email-validator = "^1.3.0"
+# Required for FastAPI form parsing (OAuth2)
 python-multipart = "^0.0.20"
+# PostgreSQL driver
 psycopg2-binary = "^2.9.10"
 
 [tool.poetry.dev-dependencies]

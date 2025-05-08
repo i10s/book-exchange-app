@@ -14,20 +14,30 @@ services:
       - db
     volumes:
       - ./:/app
-    # Levanta Uvicorn apuntando a main:app en modo reload para desarrollo
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command:
+      - uvicorn
+      - main:app
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --reload
 
   db:
     image: postgres:15-alpine
     container_name: book-exchange-db
     env_file:
       - .env
-    # Mapear puerto 5433 del host al 5432 del contenedor
+    environment:
+      # Importamos desde .env
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
+      # mapeo host → contenedor (pero el web se conecta a "db:5432" internamente)
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
 volumes:
   pgdata:
-    # Volumen persistente para datos de PostgreSQL
