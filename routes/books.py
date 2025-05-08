@@ -1,99 +1,107 @@
-# book_exchange_app/routers/books.py
-"""
-Router for CRUD operations on books in the Book Exchange App.
-"""
-from typing import List
+# routes/books.py
+
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import select, Session
+from pydantic import BaseModel
+from sqlmodel import Session, select
 
-from ..database import get_session
-from ..models import Book
+from database import get_session
+from models import Book
 
-router = APIRouter(
-    prefix="/books",
-    tags=["books"],
-)
+# Disable automatic slash‐redirects on this router
+router = APIRouter(redirect_slashes=False)
 
-@router.get("/", response_model=List[Book])
-async def read_books(
+class BookCreate(BaseModel):
+    title: str
+    author: str
+    grade: Optional[int] = None
+    isbn: Optional[str] = None
+    owner_id: int
+
+class BookRead(BaseModel):
+    id: int
+    title: str
+    author: str
+    grade: Optional[int]
+    isbn: Optional[str]
+    owner_id: int
+
+class BookUpdate(BaseModel):
+    title: Optional[str] = None
+    author: Optional[str] = None
+    grade: Optional[int] = None
+    isbn: Optional[str] = None
+    owner_id: Optional[int] = None
+
+@router.get("", response_model=List[BookRead])
+def list_books(
+    session: Session = Depends(get_session),
+    skip: int = 0,
     limit: int = 100,
-    offset: int = 0,
-    session: Session = Depends(get_session),
 ):
     """
-    Retrieve a list of books with optional pagination.
+    GET /books
+    Retrieve a paginated list of books.
     """
-    statement = select(Book).limit(limit).offset(offset)
-    results = session.exec(statement)
-    return results.all()
+    return session.exec(select(Book).offset(skip).limit(limit)).all()
 
-@router.get("/{book_id}", response_model=Book)
-async def read_book(
-    book_id: int,
+@router.post("", response_model=BookRead, status_code=status.HTTP_201_CREATED)
+def create_book(
+    book_in: BookCreate,
     session: Session = Depends(get_session),
 ):
     """
-    Retrieve a single book by its ID.
-    """
-    book = session.get(Book, book_id)
-    if not book:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Book not found",
-        )
-    return book
-
-@router.post("/", response_model=Book, status_code=status.HTTP_201_CREATED)
-async def create_book(
-    book: Book,
-    session: Session = Depends(get_session),
-):
-    """
+    POST /books
     Create a new book entry.
     """
+    book = Book(**book_in.dict())
     session.add(book)
     session.commit()
     session.refresh(book)
     return book
 
-@router.put("/{book_id}", response_model=Book)
-async def update_book(
-    book_id: int,
-    updated: Book,
-    session: Session = Depends(get_session),
-):
+@router.get("/{book_id}", response_model=BookRead)
+def get_book(book_id: int, session: Session = Depends(get_session)):
     """
-    Update an existing book by ID.
+    GET /books/{book_id}
+    Retrieve a single book by its ID.
     """
     book = session.get(Book, book_id)
     if not book:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Book not found",
-        )
-    book_data = updated.dict(exclude_unset=True)
-    for key, value in book_data.items():
-        setattr(book, key, value)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+    return book
+
+@router.put("/{book_id}", response_model=BookRead)
+def update_book(
+    book_id: int,
+    book_in: BookUpdate,
+    session: Session = Depends(get_session),
+):
+    """
+    PUT /books/{book_id}
+    Update an existing book by its ID.
+    """
+    book = session.get(Book, book_id)
+    if not book:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
+    updates = book_in.dict(exclude_unset=True)
+    for field, value in updates.items():
+        setattr(book, field, value)
     session.add(book)
     session.commit()
     session.refresh(book)
     return book
 
 @router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_book(
-    book_id: int,
-    session: Session = Depends(get_session),
-):
+def delete_book(book_id: int, session: Session = Depends(get_session)):
     """
-    Delete a book by ID.
+    DELETE /books/{book_id}
+    Delete a book by its ID.
     """
     book = session.get(Book, book_id)
     if not book:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Book not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Book not found")
     session.delete(book)
     session.commit()
-    return None
+    return

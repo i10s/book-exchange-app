@@ -1,28 +1,31 @@
-# book_exchange_app/main.py
+# main.py
 
 from fastapi import FastAPI
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 
-from .database import init_db
-from .routers import books, users, exchanges
+from database import init_db
+from routes.books import router as books_router
+from routes.users import router as users_router
+from routes.exchanges import router as exchanges_router
 
 def create_app() -> FastAPI:
     """
-    Create and configure the FastAPI application, including:
-    - Automatic database initialization on startup
-    - HTTPS redirect and CORS middleware
-    - Registration of API routers
+    Create and configure the FastAPI application:
+    - Initialize the database on startup
+    - Enforce HTTPS redirect
+    - Enable CORS
+    - Register API routers
     """
     app = FastAPI(title="Book Exchange App", version="0.1.0")
 
-    # Create database tables if they don't exist
+    # Auto-create database tables at startup
     app.add_event_handler("startup", init_db)
 
-    # Enforce HTTPS (in production behind a proxy this may be handled elsewhere)
-    app.add_middleware(HTTPSRedirectMiddleware)
+    # Redirect HTTP to HTTPS (if exposed)
+    # app.add_middleware(HTTPSRedirectMiddleware)
 
-    # CORS settings (allow all for now; tighten in production)
+    # Allow all CORS origins for now
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -32,24 +35,15 @@ def create_app() -> FastAPI:
     )
 
     # Register routers
-    app.include_router(books.router, prefix="/books", tags=["books"])
-    app.include_router(users.router, prefix="/users", tags=["users"])
-    app.include_router(exchanges.router, prefix="/exchanges", tags=["exchanges"])
+    app.include_router(books_router,    prefix="/books",    tags=["books"])
+    app.include_router(users_router,    prefix="/users",    tags=["users"])
+    app.include_router(exchanges_router, prefix="/exchanges", tags=["exchanges"])
 
     @app.get("/health", tags=["health"])
     def health_check():
-        """Basic health check endpoint."""
+        """Simple health check endpoint."""
         return {"status": "ok"}
 
     return app
 
 app = create_app()
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "book_exchange_app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-    )

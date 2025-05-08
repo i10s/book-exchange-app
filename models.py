@@ -1,81 +1,94 @@
-# book_exchange_app/models.py
-"""
-Database models for Book Exchange App using SQLModel.
-Defines data structures: Family, User, Book, and Exchange.
-Includes fields for secure authentication and LOPDGDD/RGPD compliance.
-"""
+# models.py
+
 from typing import Optional, List
 from datetime import datetime
+from enum import Enum
+
 from sqlmodel import SQLModel, Field, Relationship
-
-
-def get_prefix() -> str:
-    """
-    Helper for consistent foreign key naming (unused placeholder).
-    """
-    return ""
 
 
 class Family(SQLModel, table=True):
     """
-    Represents a family group within the application.
-    Each family can have multiple users and exchanges.
+    Represents a family (i.e. a user group) in the school community.
     """
     id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(index=True, nullable=False, description="Family name or group identifier")
+    name: str
+    email: str
 
-    # Relationships
-    users: List["User"] = Relationship(back_populates="family")
-    exchanges: List["Exchange"] = Relationship(back_populates="family")
+    # Back-reference to this family’s books and exchanges
+    books: List["Book"] = Relationship(back_populates="owner")
+    exchanges_proposed: List["Exchange"] = Relationship(
+        back_populates="proposer_family",
+        sa_relationship_kwargs={"primaryjoin": "Family.id==Exchange.proposer_family_id"}
+    )
+    exchanges_received: List["Exchange"] = Relationship(
+        back_populates="receiver_family",
+        sa_relationship_kwargs={"primaryjoin": "Family.id==Exchange.receiver_family_id"}
+    )
 
 
 class User(SQLModel, table=True):
     """
-    Represents an individual user belonging to a family, with secure credential storage.
+    Represents an individual user who can log in to the system.
     """
     id: Optional[int] = Field(default=None, primary_key=True)
-    username: str = Field(index=True, unique=True, nullable=False, description="Username or alias for login")
-    email: str = Field(index=True, unique=True, nullable=False, description="Contact email for notifications")
-    hashed_password: str = Field(nullable=False, description="Password hash for authentication")
-    is_active: bool = Field(default=True, description="Flag to mark active/inactive users for compliance")
-    family_id: Optional[int] = Field(foreign_key="family.id", nullable=False, description="Reference to the user's family")
-
-    # Relationships
-    family: Optional[Family] = Relationship(back_populates="users")
+    username: str = Field(index=True, unique=True)
+    email: str = Field(index=True, unique=True)
+    hashed_password: str
+    is_active: bool = True
 
 
 class Book(SQLModel, table=True):
     """
-    Represents a textbook or reading book available for exchange.
+    Represents a book owned by a family.
     """
     id: Optional[int] = Field(default=None, primary_key=True)
-    title: str = Field(index=True, nullable=False, description="Book title")
-    author: Optional[str] = Field(default=None, index=True, description="Book author")
-    grade: Optional[int] = Field(default=None, description="School grade or level")
-    isbn: Optional[str] = Field(default=None, unique=True, index=True, description="International Standard Book Number")
-    added_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp when book was added")
-    owner_id: Optional[int] = Field(foreign_key="user.id", nullable=False, description="User who owns the book")
+    title: str
+    author: str
+    grade: Optional[int] = None
+    isbn: Optional[str] = None
 
-    # Relationships
-    owner: Optional[User] = Relationship()
-    exchanges: List["Exchange"] = Relationship(back_populates="book")
+    owner_id: int = Field(foreign_key="family.id")
+    owner: Optional[Family] = Relationship(back_populates="books")
+
+
+class ExchangeStatus(str, Enum):
+    """
+    Defines the lifecycle states of a book exchange proposal.
+    """
+    pending = "pending"
+    accepted = "accepted"
+    rejected = "rejected"
 
 
 class Exchange(SQLModel, table=True):
     """
-    Represents a proposed or completed exchange between two families for a specific book.
+    Represents a proposal to exchange one book for another between two families.
     """
     id: Optional[int] = Field(default=None, primary_key=True)
-    book_id: int = Field(foreign_key="book.id", nullable=False, description="Book to be exchanged")
-    family_id: int = Field(foreign_key="family.id", nullable=False, description="Family proposing the exchange")
-    to_family_id: int = Field(foreign_key="family.id", nullable=False, description="Family receiving the proposal")
-    status: str = Field(default="pending", description="Exchange status: pending, accepted, declined, completed")
-    requested_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp when exchange requested")
-    responded_at: Optional[datetime] = Field(default=None, description="Timestamp when exchange was responded to")
+
+    proposer_family_id: int = Field(foreign_key="family.id")
+    receiver_family_id: int = Field(foreign_key="family.id")
+
+    offered_book_id: int = Field(foreign_key="book.id")
+    requested_book_id: int = Field(foreign_key="book.id")
+
+    status: ExchangeStatus = Field(default=ExchangeStatus.pending)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships
-    book: "Book" = Relationship(back_populates="exchanges")
-    family: "Family" = Relationship(back_populates="exchanges")
-    to_family: "Family" = Relationship(
-        sa_relationship_kwargs={"primaryjoin": "Exchange.to_family_id == Family.id"}
+    proposer_family: Optional[Family] = Relationship(
+        back_populates="exchanges_proposed",
+        sa_relationship_kwargs={"foreign_keys": "[Exchange.proposer_family_id]"}
+    )
+    receiver_family: Optional[Family] = Relationship(
+        back_populates="exchanges_received",
+        sa_relationship_kwargs={"foreign_keys": "[Exchange.receiver_family_id]"}
+    )
+    offered_book: Optional[Book] = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "[Exchange.offered_book_id]"}
+    )
+    requested_book: Optional[Book] = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "[Exchange.requested_book_id]"}
     )
