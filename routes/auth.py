@@ -4,7 +4,10 @@ from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import (
+    OAuth2PasswordBearer,
+    OAuth2PasswordRequestForm,
+)
 from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -19,10 +22,12 @@ from security import (
 )
 from models import User
 
-router = APIRouter()
+router = APIRouter(
+    tags=["auth"],
+)
 
-# OAuth2 scheme to extract the token from the "Authorization: Bearer <token>" header
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+# This tells FastAPI where to get the token from (and where to POST to get one)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
 class Token(BaseModel):
@@ -46,9 +51,9 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=expires
+        data={"sub": user.username}, expires_delta=expires_delta
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -58,8 +63,8 @@ async def get_current_user(
     session: Session = Depends(get_session),
 ) -> User:
     """
-    Decode the JWT token, verify it, and return the corresponding User.
-    Raises 401 if token is invalid or user does not exist.
+    Decode and verify the JWT token, then return the corresponding User.
+    Raises 401 if token is invalid or user not found.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -68,7 +73,6 @@ async def get_current_user(
     )
 
     try:
-        # Decode the token payload
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str | None = payload.get("sub")
         if username is None:
@@ -76,10 +80,8 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
 
-    # Fetch the user from the database
     statement = select(User).where(User.username == username)
-    result = session.exec(statement)
-    user = result.one_or_none()
+    user = session.exec(statement).one_or_none()
     if user is None:
         raise credentials_exception
 

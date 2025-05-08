@@ -12,7 +12,6 @@ from security import get_password_hash, get_current_active_user
 
 # All /users endpoints require an authenticated, active user
 router = APIRouter(
-    prefix="/users",
     tags=["users"],
     redirect_slashes=False,
     dependencies=[Depends(get_current_active_user)],

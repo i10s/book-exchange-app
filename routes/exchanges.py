@@ -13,7 +13,6 @@ from security import get_current_active_user
 
 # All endpoints under /exchanges require an authenticated, active user
 router = APIRouter(
-    prefix="/exchanges",
     tags=["exchanges"],
     redirect_slashes=False,
     dependencies=[Depends(get_current_active_user)],

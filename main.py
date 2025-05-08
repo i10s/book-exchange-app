@@ -36,8 +36,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Authentication endpoints (OAuth2 password flow)
-    app.include_router(auth_router, tags=["auth"])
+    # Authentication endpoints (mounted under /auth)
+    app.include_router(auth_router, prefix="/auth", tags=["auth"])
 
     # Simple root endpoint (not shown in OpenAPI schema)
     @app.get("/", include_in_schema=False)

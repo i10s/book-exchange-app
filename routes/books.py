@@ -12,7 +12,6 @@ from security import get_current_active_user
 
 # All endpoints under /books require a valid, active JWT user
 router = APIRouter(
-    prefix="/books",
     tags=["books"],
     redirect_slashes=False,
     dependencies=[Depends(get_current_active_user)],
