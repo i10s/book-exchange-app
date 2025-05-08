@@ -8,9 +8,13 @@ from sqlmodel import Session, select
 
 from database import get_session
 from models import Book
+from security import get_current_active_user
 
-# Disable automatic slash‐redirects on this router
-router = APIRouter(redirect_slashes=False)
+# All /books endpoints now require a valid, active JWT user
+router = APIRouter(
+    redirect_slashes=False,
+    dependencies=[Depends(get_current_active_user)]
+)
 
 class BookCreate(BaseModel):
     title: str
@@ -42,7 +46,6 @@ def list_books(
 ):
     """
     GET /books
-    Retrieve a paginated list of books.
     """
     return session.exec(select(Book).offset(skip).limit(limit)).all()
 
@@ -53,7 +56,6 @@ def create_book(
 ):
     """
     POST /books
-    Create a new book entry.
     """
     book = Book(**book_in.dict())
     session.add(book)
@@ -65,7 +67,6 @@ def create_book(
 def get_book(book_id: int, session: Session = Depends(get_session)):
     """
     GET /books/{book_id}
-    Retrieve a single book by its ID.
     """
     book = session.get(Book, book_id)
     if not book:
@@ -80,7 +81,6 @@ def update_book(
 ):
     """
     PUT /books/{book_id}
-    Update an existing book by its ID.
     """
     book = session.get(Book, book_id)
     if not book:
@@ -97,7 +97,6 @@ def update_book(
 def delete_book(book_id: int, session: Session = Depends(get_session)):
     """
     DELETE /books/{book_id}
-    Delete a book by its ID.
     """
     book = session.get(Book, book_id)
     if not book:

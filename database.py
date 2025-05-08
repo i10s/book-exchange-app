@@ -1,28 +1,35 @@
 # database.py
 
 import os
-from sqlmodel import create_engine, SQLModel, Session
+from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlmodel import SQLModel, Session
 from typing import Generator
 
-# Read the database URL from environment (fallback to SQLite file)
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./book_exchange.db")
+# Load environment variables from .env
+load_dotenv()
 
-# Create the SQLModel engine
-engine = create_engine(DATABASE_URL, echo=True)
+# Default to SQLite file if DATABASE_URL is not set
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./database.db")
+
+# For SQLite, disable the same-thread check so you can use sessions in FastAPI threads
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args["check_same_thread"] = False
+
+# Create the engine
+engine = create_engine(DATABASE_URL, echo=True, connect_args=connect_args)
 
 def init_db() -> None:
     """
-    Initialize the database.
-    Creates all tables defined on the SQLModel metadata.
+    Create all tables in the database.
+    Called at application startup.
     """
     SQLModel.metadata.create_all(engine)
 
-
 def get_session() -> Generator[Session, None, None]:
     """
-    Provide a transactional session for FastAPI dependencies.
-    Yields:
-        Session: a SQLModel session connected to the engine.
+    Yield a new Session, and ensure it closes (and rolls back on error).
     """
     with Session(engine) as session:
         yield session

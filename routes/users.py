@@ -8,10 +8,13 @@ from sqlmodel import Session, select
 
 from database import get_session
 from models import User
-from security import get_password_hash
+from security import get_password_hash, get_current_active_user
 
-# Disable automatic slash‐redirects on this router
-router = APIRouter(redirect_slashes=False)
+# All /users endpoints now require authentication
+router = APIRouter(
+    redirect_slashes=False,
+    dependencies=[Depends(get_current_active_user)]
+)
 
 class UserCreate(BaseModel):
     username: str
@@ -38,7 +41,6 @@ def list_users(
 ):
     """
     GET /users
-    Retrieve a paginated list of users.
     """
     return session.exec(select(User).offset(skip).limit(limit)).all()
 
@@ -49,7 +51,6 @@ def create_user(
 ):
     """
     POST /users
-    Create a new user with a hashed password.
     """
     existing = session.exec(select(User).where(User.email == user_in.email)).first()
     if existing:
@@ -65,7 +66,6 @@ def create_user(
 def get_user(user_id: int, session: Session = Depends(get_session)):
     """
     GET /users/{user_id}
-    Retrieve a single user by ID.
     """
     user = session.get(User, user_id)
     if not user:
@@ -80,7 +80,6 @@ def update_user(
 ):
     """
     PUT /users/{user_id}
-    Update an existing user by ID.
     """
     user = session.get(User, user_id)
     if not user:
@@ -99,7 +98,6 @@ def update_user(
 def delete_user(user_id: int, session: Session = Depends(get_session)):
     """
     DELETE /users/{user_id}
-    Delete a user by its ID.
     """
     user = session.get(User, user_id)
     if not user:

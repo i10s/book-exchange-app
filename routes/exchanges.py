@@ -9,9 +9,13 @@ from sqlmodel import Session, select
 
 from database import get_session
 from models import Exchange, ExchangeStatus, Family, Book
+from security import get_current_active_user
 
-# Disable automatic slash‐redirects on this router
-router = APIRouter(redirect_slashes=False)
+# All /exchanges endpoints now require authentication
+router = APIRouter(
+    redirect_slashes=False,
+    dependencies=[Depends(get_current_active_user)]
+)
 
 class ExchangeCreate(BaseModel):
     proposer_family_id: int
@@ -40,7 +44,6 @@ def list_exchanges(
 ):
     """
     GET /exchanges
-    Retrieve a paginated list of exchange proposals.
     """
     return session.exec(select(Exchange).offset(skip).limit(limit)).all()
 
@@ -51,15 +54,13 @@ def create_exchange(
 ):
     """
     POST /exchanges
-    Propose a new exchange between two families.
     """
-    # Validate families exist
+    # Validate families
     if not session.get(Family, exchange_in.proposer_family_id) or not session.get(Family, exchange_in.receiver_family_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid family ID(s).")
-    # Validate books exist
+    # Validate books
     if not session.get(Book, exchange_in.offered_book_id) or not session.get(Book, exchange_in.requested_book_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid book ID(s).")
-
     exch = Exchange(
         proposer_family_id=exchange_in.proposer_family_id,
         receiver_family_id=exchange_in.receiver_family_id,
@@ -76,7 +77,6 @@ def create_exchange(
 def get_exchange(exchange_id: int, session: Session = Depends(get_session)):
     """
     GET /exchanges/{exchange_id}
-    Retrieve a single exchange by its ID.
     """
     exchange = session.get(Exchange, exchange_id)
     if not exchange:
@@ -91,7 +91,6 @@ def update_exchange(
 ):
     """
     PUT /exchanges/{exchange_id}
-    Update the status of an existing exchange.
     """
     exchange = session.get(Exchange, exchange_id)
     if not exchange:
@@ -107,7 +106,6 @@ def update_exchange(
 def delete_exchange(exchange_id: int, session: Session = Depends(get_session)):
     """
     DELETE /exchanges/{exchange_id}
-    Delete an exchange proposal by ID.
     """
     exchange = session.get(Exchange, exchange_id)
     if not exchange:
