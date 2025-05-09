@@ -1,5 +1,3 @@
-// client/app.js
-
 // Base URL for all API calls
 const API_BASE = location.origin;
 
@@ -7,16 +5,16 @@ const API_BASE = location.origin;
 let token = null;
 
 // DOM refs
-const loginSec      = document.getElementById("login-section");
-const loginForm     = document.getElementById("login-form");
-const loginError    = document.getElementById("login-error");
+const loginSec     = document.getElementById("login-section");
+const loginForm    = document.getElementById("login-form");
+const loginError   = document.getElementById("login-error");
 
-const booksSec      = document.getElementById("books-section");
-const booksList     = document.getElementById("books-list");
-const refreshBtn    = document.getElementById("refresh-books");
+const booksSec     = document.getElementById("books-section");
+const booksList    = document.getElementById("books-list");
+const refreshBtn   = document.getElementById("refresh-books");
 
-const addBookForm   = document.getElementById("add-book-form");
-const addBookError  = document.getElementById("add-book-error");
+const addBookForm  = document.getElementById("add-book-form");
+const addBookError = document.getElementById("add-book-error");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1) Login handler
@@ -95,7 +93,7 @@ addBookForm.addEventListener("submit", async e => {
   const data = {};
   new FormData(addBookForm).forEach((value, key) => {
     // Convert numeric fields to numbers
-    if (["grade","owner_id"].includes(key) && value !== "") {
+    if (["grade", "owner_id"].includes(key) && value !== "") {
       data[key] = Number(value);
     } else if (value !== "") {
       data[key] = value;
