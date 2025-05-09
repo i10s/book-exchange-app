@@ -18,9 +18,34 @@ const loginError    = document.getElementById("login-error");
 const booksSec      = document.getElementById("books-section");
 const booksList     = document.getElementById("books-list");
 const refreshBtn    = document.getElementById("refresh-books");
+const logoutBtn     = document.getElementById("logout");
 
 const addBookForm   = document.getElementById("add-book-form");
 const addBookError  = document.getElementById("add-book-error");
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Initialize: if there's a saved token, go straight to books
+window.addEventListener("DOMContentLoaded", async () => {
+  const saved = localStorage.getItem("token");
+  if (saved) {
+    token = saved;
+    _showBooksView();
+    await loadBooks();
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers to toggle views
+function _showBooksView() {
+  registerSec.style.display = "none";
+  loginSec.style.display    = "none";
+  booksSec.style.display    = "block";
+}
+function _showAuthView() {
+  registerSec.style.display = "";
+  loginSec.style.display    = "";
+  booksSec.style.display    = "none";
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1) Sign-Up handler
@@ -28,27 +53,25 @@ registerForm.addEventListener("submit", async e => {
   e.preventDefault();
   registerError.textContent = "";
 
-  // collect form data
-  const formData = new FormData(registerForm);
+  const fm = new FormData(registerForm);
   const payload = {
-    username: formData.get("username"),
-    email:    formData.get("email"),
-    password: formData.get("password"),
+    username: fm.get("username"),
+    email:    fm.get("email"),
+    password: fm.get("password"),
   };
 
   try {
-    // call register endpoint
     const res = await fetch(`${API_BASE}/auth/register`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify(payload),
     });
     if (!res.ok) {
-      const err = await res.json().catch(()=>({}));
+      const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || `Failed to register (${res.status})`);
     }
 
-    // on successful sign-up, auto-login
+    // auto-login after successful signup
     const loginParams = new URLSearchParams();
     loginParams.append("username", payload.username);
     loginParams.append("password", payload.password);
@@ -62,13 +85,9 @@ registerForm.addEventListener("submit", async e => {
 
     const { access_token } = await loginRes.json();
     token = access_token;
+    localStorage.setItem("token", token);
 
-    // hide auth forms, show books
-    registerSec.style.display = "none";
-    loginSec.style.display    = "none";
-    booksSec.style.display    = "block";
-
-    // load books
+    _showBooksView();
     await loadBooks();
 
   } catch (err) {
@@ -94,15 +113,11 @@ loginForm.addEventListener("submit", async e => {
       throw new Error(err.detail || "Invalid credentials");
     }
 
-    const data = await res.json();
-    token = data.access_token;
+    const { access_token } = await res.json();
+    token = access_token;
+    localStorage.setItem("token", token);
 
-    // hide auth forms, show books
-    registerSec.style.display = "none";
-    loginSec.style.display    = "none";
-    booksSec.style.display    = "block";
-
-    // initial fetch
+    _showBooksView();
     await loadBooks();
 
   } catch (err) {
@@ -118,9 +133,8 @@ async function loadBooks() {
     const res = await fetch(`${API_BASE}/books`, {
       headers: { "Authorization": `Bearer ${token}` },
     });
-    if (!res.ok) {
-      throw new Error(`Error ${res.status}: ${res.statusText}`);
-    }
+    if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`);
+
     const books = await res.json();
     if (books.length === 0) {
       booksList.innerHTML = `<li>No books found.</li>`;
@@ -138,10 +152,17 @@ async function loadBooks() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 4) Refresh button
+// 4) Refresh & Logout
 refreshBtn.addEventListener("click", () => {
-  if (!token) return;
-  loadBooks();
+  if (token) loadBooks();
+});
+logoutBtn.addEventListener("click", () => {
+  token = null;
+  localStorage.removeItem("token");
+  _showAuthView();
+  registerForm.reset();
+  loginForm.reset();
+  booksList.innerHTML = "";
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

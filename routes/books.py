@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from database import get_session
-from models import Book
+from models import Book, Family
 from security import get_current_active_user
 
 # All endpoints under /books require a valid, active JWT user
@@ -78,6 +78,13 @@ def create_book(
     POST /books
     Create a new book.
     """
+    # Validate owner exists
+    if not session.get(Family, book_in.owner_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid owner_id={book_in.owner_id}: no such family",
+        )
+
     book = Book(**book_in.dict())
     session.add(book)
     session.commit()
@@ -121,9 +128,21 @@ def update_book(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Book not found",
         )
+
     updates = book_in.dict(exclude_unset=True)
+
+    # If owner_id is being updated, validate it
+    if "owner_id" in updates:
+        new_owner = updates["owner_id"]
+        if not session.get(Family, new_owner):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid owner_id={new_owner}: no such family",
+            )
+
     for field, value in updates.items():
         setattr(book, field, value)
+
     session.add(book)
     session.commit()
     session.refresh(book)
