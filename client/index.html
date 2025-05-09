@@ -9,7 +9,19 @@
 <body>
   <h1>📚 Book Exchange</h1>
 
-  <!-- 1) Login section -->
+  <!-- 1) Register section -->
+  <section id="register-section">
+    <h2>Register</h2>
+    <form id="register-form">
+      <input name="username" placeholder="Username" required /><br/>
+      <input name="email" type="email" placeholder="Email" required /><br/>
+      <input name="password" type="password" placeholder="Password" required /><br/>
+      <button type="submit">Sign Up</button>
+    </form>
+    <div id="register-error" class="error"></div>
+  </section>
+
+  <!-- 2) Login section -->
   <section id="login-section">
     <h2>Login</h2>
     <form id="login-form">
@@ -20,23 +32,23 @@
     <div id="login-error" class="error"></div>
   </section>
 
-  <!-- 2) Books section (hidden until login) -->
+  <!-- 3) Books section (hidden until you’re authenticated) -->
   <section id="books-section" style="display:none">
     <h2>Your Books</h2>
 
-    <!-- Refresh button -->
+    <!-- Refresh -->
     <button id="refresh-books">Refresh List</button>
 
-    <!-- List of books -->
+    <!-- List -->
     <ul id="books-list"></ul>
 
-    <!-- Add-book form -->
+    <!-- Add a new book -->
     <h3>Add a New Book</h3>
     <form id="add-book-form">
-      <input name="title" placeholder="Title" required /><br/>
-      <input name="author" placeholder="Author" required /><br/>
-      <input name="grade" type="number" placeholder="Grade" min="1" max="12" /><br/>
-      <input name="isbn" placeholder="ISBN" /><br/>
+      <input name="title"    placeholder="Title" required /><br/>
+      <input name="author"   placeholder="Author" required /><br/>
+      <input name="grade"    type="number" placeholder="Grade" min="1" max="12" /><br/>
+      <input name="isbn"     placeholder="ISBN" /><br/>
       <input name="owner_id" type="number" placeholder="Your Family ID" required /><br/>
       <button type="submit">Add Book</button>
     </form>

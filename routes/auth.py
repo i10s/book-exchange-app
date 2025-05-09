@@ -4,29 +4,25 @@ from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import (
-    OAuth2PasswordBearer,
-    OAuth2PasswordRequestForm,
-)
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
 
 from database import get_session
 from security import (
     authenticate_user,
     create_access_token,
+    get_password_hash,
     ACCESS_TOKEN_EXPIRE_MINUTES,
     SECRET_KEY,
     ALGORITHM,
 )
 from models import User
 
-router = APIRouter(
-    tags=["auth"],
-)
+router = APIRouter(tags=["auth"])
 
-# This tells FastAPI where to get the token from (and where to POST to get one)
+# points to the login endpoint at /auth/token
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
@@ -35,13 +31,63 @@ class Token(BaseModel):
     token_type: str
 
 
-@router.post("/token", response_model=Token)
+class RegisterRequest(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+
+
+class UserRead(BaseModel):
+    id: int
+    username: str
+    email: EmailStr
+    is_active: bool
+
+
+@router.post(
+    "/register",
+    response_model=UserRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new user account",
+)
+def register_user(
+    request: RegisterRequest,
+    session: Session = Depends(get_session),
+):
+    """
+    Register a new user.  
+    Fails if username or email is already taken.
+    """
+    # check for existing username/email
+    stmt = select(User).where(
+        (User.username == request.username) | (User.email == request.email)
+    )
+    if session.exec(stmt).first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username or email already registered",
+        )
+
+    # hash password & save user
+    user = User(
+        username=request.username,
+        email=request.email,
+        hashed_password=get_password_hash(request.password),
+        is_active=True,
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+@router.post("/token", response_model=Token, summary="Obtain JWT token")
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: Session = Depends(get_session),
 ):
     """
-    Exchange a username and password for a JWT access token.
+    Exchange username and password for a JWT access token.
     """
     user = authenticate_user(session, form_data.username, form_data.password)
     if not user:
